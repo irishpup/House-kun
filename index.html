@@ -419,7 +419,7 @@ categories.forEach(cat => {
   app.insertAdjacentHTML('beforeend', html);
 });
 
-// Deep link to Amazon app first, fall back to web add-to-cart
+// Deep link handler
 document.querySelectorAll('.item-card').forEach(card => {
   card.addEventListener('click', e => {
     e.preventDefault();
@@ -430,47 +430,23 @@ document.querySelectorAll('.item-card').forEach(card => {
     const isSafeway = href.includes('safeway.com');
 
     if (isAmazon) {
-      const cartMatch = href.match(/ASIN\.1=([A-Z0-9]{10})/);
       const dpMatch = href.match(/\/dp\/([A-Z0-9]{10})/);
-      const asin = (cartMatch && cartMatch[1]) || (dpMatch && dpMatch[1]);
-
+      const asin = dpMatch && dpMatch[1];
       if (asin) {
-        const webCartUrl = `https://www.amazon.com/gp/aws/cart/add.html?ASIN.1=${asin}&Quantity.1=1`;
-        // Try Amazon app via universal link first (works on iOS & Android)
-        // Amazon's app intercepts amazon.com links automatically on mobile
-        // Use a hidden iframe trick to attempt app launch, fallback to web
-        const appUrl = `amazon://add-to-cart?ASIN=${asin}`;
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        iframe.src = appUrl;
-        // If app doesn't open within 800ms, redirect to web cart
+        // On iOS, amazon:// deep link opens the app directly to the product
+        const appUrl = `amazon://detail?asin=${asin}`;
+        window.location = appUrl;
+        // After 1s, if app didn't open, fall back to mobile website
         setTimeout(() => {
-          document.body.removeChild(iframe);
-          window.location.href = webCartUrl;
-        }, 800);
+          window.location.href = `https://www.amazon.com/dp/${asin}`;
+        }, 1000);
       } else {
-        // Short link — open directly, Amazon app will intercept if installed
         window.location.href = href;
       }
     } else if (isSafeway) {
-      // Extract product ID from Safeway URL for deep link
-      const pidMatch = href.match(/product-details\.(\d+)\.html/);
-      if (pidMatch) {
-        const pid = pidMatch[1];
-        // Try Safeway app deep link with product
-        const appUrl = `safeway://product/${pid}`;
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        iframe.src = appUrl;
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          window.location.href = href;
-        }, 800);
-      } else {
-        window.location.href = href;
-      }
+      // Safeway universal links — iOS will open the app automatically
+      // if Safeway app is installed when navigating to safeway.com
+      window.location.href = href;
     } else {
       window.location.href = href;
     }
